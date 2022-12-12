@@ -1,0 +1,396 @@
+package excelop;
+
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.xssf.usermodel.XSSFCell;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFFont;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import constants.Constants;
+import jsonParser.ParseResponse;
+import jsonParser.ParseResponse_OFFLINE;
+import writejson.WriteMeTheJson;
+
+public class OperationsXL {
+    private static Hashtable<String, Hashtable<String, Map<String, Map<String, Map<String, String>>>>> xlWrite = new Hashtable<String, Hashtable<String, Map<String, Map<String, Map<String, String>>>>>();
+    private static Hashtable<String, Hashtable<String, Hashtable<String, Hashtable<String, String>>>> largerFaucet = new Hashtable<String, Hashtable<String, Hashtable<String, Hashtable<String, String>>>>();
+
+    private static double prevMC;
+
+    private static Map<String, Map<String, String>> bindRECEPTOR = new HashMap<String, Map<String, String>>();
+
+    /*
+     * PARAMETERS "IMAGE-NAME" : imageNAME "PAGE-NUMBER" : pageNAME "FIELD-NAME" :
+     * fieldNAME MODELCONFIDENCE
+     */
+
+    public static String[] get_field_list_IN() {
+	return Constants.fn_getFieldsList("INGRAM");
+    }
+
+    public static Hashtable<String, Hashtable<String, Map<String, Map<String, Map<String, String>>>>> getJSONTOWRITE_OFFLINE()
+	    throws IOException {
+	/* xlWrite = ParseResponse_OFFLINE.invoke_OFFLINE(); */
+	xlWrite = ParseResponse_OFFLINE.invoke_OFFLINE_AUTO();
+	return xlWrite;
+    }
+
+    public static Hashtable<String, Hashtable<String, Map<String, Map<String, Map<String, String>>>>> getJSONTOWRITE_ONLINE()
+	    throws IOException {
+	xlWrite = ParseResponse.parseValidator();
+	return xlWrite;
+    }
+
+    public static XSSFWorkbook sheet_getSTyle() {
+	XSSFWorkbook workbook = new XSSFWorkbook();
+	XSSFSheet sheet = workbook.createSheet("OUT-BEAN");
+
+	XSSFFont defaultFont = workbook.createFont();
+	defaultFont.setFontHeightInPoints((short) 10);
+	defaultFont.setFontName("Arial");
+	defaultFont.setColor(IndexedColors.BLACK.getIndex());
+	defaultFont.setBold(false);
+	defaultFont.setItalic(false);
+
+	XSSFFont font = workbook.createFont();
+	font.setFontHeightInPoints((short) 10);
+	font.setFontName("Arial");
+	font.setColor(IndexedColors.WHITE.getIndex());
+	font.setBold(true);
+	font.setItalic(false);
+
+	XSSFCellStyle style = workbook.createCellStyle();
+	style.setFillBackgroundColor(IndexedColors.DARK_BLUE.getIndex());
+	style.setFont(defaultFont);
+
+	XSSFRow row_header = sheet.createRow(0);
+	row_header.createCell(0).setCellValue("IMAGE-NAME");
+	row_header.getCell(0).setCellStyle(style);
+
+	row_header.createCell(1).setCellValue("PAGE-NUMBER");
+	row_header.getCell(1).setCellStyle(style);
+
+	row_header.createCell(2).setCellValue("FIELD-NAME");
+	row_header.getCell(2).setCellStyle(style);
+
+	row_header.createCell(3).setCellValue("MODEL-CONFIDENCE");
+	row_header.getCell(3).setCellStyle(style);
+
+	row_header.createCell(4).setCellValue("OCR-CONFIDENCE");
+	row_header.getCell(4).setCellStyle(style);
+
+	row_header.createCell(5).setCellValue("EXTRACTED-VALUE");
+	row_header.getCell(5).setCellStyle(style);
+
+	return workbook;
+    }
+
+    public static Hashtable<String, Hashtable<String, Hashtable<String, Hashtable<String, String>>>> WRITE_TO_XL()
+	    throws IOException {
+	FileOutputStream fOUT = new FileOutputStream(".\\API.xlsx");
+	XSSFWorkbook workbook = sheet_getSTyle();
+
+	XSSFSheet sheet = workbook.getSheet("OUT-BEAN");
+	int rownumber = 1;
+
+	xlWrite = getJSONTOWRITE_OFFLINE();
+
+	for (Map.Entry<String, Hashtable<String, Map<String, Map<String, Map<String, String>>>>> requestID : xlWrite
+		.entrySet()) {
+
+	    /* requestID */
+	    XSSFRow row = sheet.createRow(rownumber++);
+	    int cellnumber = 0;
+
+	    String requestNAME = requestID.getKey();
+	    row.createCell(cellnumber).setCellValue(requestNAME);
+	    /* iMAGE */
+	    for (Map.Entry<String, Map<String, Map<String, Map<String, String>>>> iMAGE : requestID.getValue()
+		    .entrySet()) {
+		String imageNAME = iMAGE.getKey();
+		row.createCell(cellnumber++).setCellValue(imageNAME);
+		/* pageID */
+		for (Map.Entry<String, Map<String, Map<String, String>>> pageID : iMAGE.getValue().entrySet()) {
+		    String pageNAME = pageID.getKey();
+		    row.createCell(cellnumber++).setCellValue(pageNAME);
+		    /* fieldID */
+		    for (Map.Entry<String, Map<String, String>> fieldID : pageID.getValue().entrySet()) {
+			Hashtable<String, Hashtable<String, Hashtable<String, String>>> imageFaucet = new Hashtable<String, Hashtable<String, Hashtable<String, String>>>();
+			Hashtable<String, Hashtable<String, String>> label_identifier = new Hashtable<String, Hashtable<String, String>>();
+
+			String fieldNAME = fieldID.getKey();
+			row.createCell(cellnumber++).setCellValue(fieldNAME);
+
+			/*
+			 * label_score label_identifier largerFaucet
+			 */
+			Hashtable<String, String> label_score = new Hashtable<String, String>();
+			for (Map.Entry<String, String> dataFaucet : fieldID.getValue().entrySet()) {
+
+			    label_score.put(dataFaucet.getKey(), dataFaucet.getValue());
+
+			    String faucet = dataFaucet.getValue();
+			    row.createCell(cellnumber++).setCellValue(faucet);
+
+			}
+			label_identifier.put(fieldNAME, label_score);
+
+			imageFaucet.put(imageNAME, label_identifier);
+
+			largerFaucet.put("REQID" + UUID.randomUUID().toString(), imageFaucet);
+		    }
+
+		}
+
+	    }
+
+	}
+	workbook.write(fOUT);
+	fOUT.close();
+	workbook.close();
+	return largerFaucet;
+    }
+
+    public static void writeMaster() throws IOException {
+
+	int ROWCOUNT = 0;
+	int CELLCOUNT = 0;
+	int ROWCunt = 0;
+	Map<String, Integer> mapRow = new HashMap<String, Integer>();
+	Map<String, String> iterate_unique_IMG = new HashMap<String, String>();
+	Map<String, String> iterate_unique_FIELD = new HashMap<String, String>();
+	List<String> writeIMAGENAME = new ArrayList<>();
+	List<String> writeFIELDNAME = new ArrayList<>();
+	Hashtable<String, Hashtable<String, Hashtable<String, Hashtable<String, String>>>> resultant = WRITE_TO_XL();
+
+	WriteMeTheJson.writingNowLargerJSON(resultant);
+	FileOutputStream fMaster = new FileOutputStream(".//API_MOD.xlsx");
+	XSSFWorkbook workb = new XSSFWorkbook();
+	XSSFSheet sheet = workb.createSheet("EXTRAC-RES");
+	XSSFRow row_image = sheet.createRow(ROWCOUNT);
+	row_image.createCell(CELLCOUNT).setCellValue("IMAGE");
+
+	for (Map.Entry<String, Hashtable<String, Hashtable<String, Hashtable<String, String>>>> extract_IMAGE : resultant
+		.entrySet()) {
+	    Hashtable<String, Hashtable<String, Hashtable<String, String>>> outer_loop_0 = extract_IMAGE.getValue();
+	    for (Map.Entry<String, Hashtable<String, Hashtable<String, String>>> outer_loop_1 : outer_loop_0
+		    .entrySet()) {
+		String IMAGE_NAME = outer_loop_1.getKey();
+		iterate_unique_IMG.put(IMAGE_NAME, "UNIQUEIMAGEID" + UUID.randomUUID().toString());
+	    }
+
+	}
+
+	for (Map.Entry<String, String> unique_image : iterate_unique_IMG.entrySet()) {
+	    writeIMAGENAME.add(unique_image.getKey());
+	}
+	for (String imageNAME : writeIMAGENAME) {
+	    row_image = sheet.createRow(++ROWCOUNT);
+	    row_image.createCell(CELLCOUNT).setCellValue(imageNAME);
+	    ROWCunt = ROWCunt + 1;
+	    mapRow.put(imageNAME, ROWCunt);
+	}
+
+	/* START ** CREATING FIELD HEADER */
+	/**
+	 *
+	 * THIS FOR BLOCK CREATES FIELD HEADER IN EXCEL
+	 *
+	 **/
+	for (String field : get_field_list_IN()) {
+	    iterate_unique_FIELD.put(field, RandomStringUtils.randomNumeric(11));
+	}
+
+	/* END ** CREATING FIELD HEADER */
+
+	for (Map.Entry<String, String> FIELD_SINGLE : iterate_unique_FIELD.entrySet()) {
+	    writeFIELDNAME.add(FIELD_SINGLE.getKey());
+	}
+
+	for (String fFIeld : writeFIELDNAME) {
+	    row_image = sheet.getRow(0);
+	    XSSFCell cell = row_image.createCell(++CELLCOUNT);
+	    cell.setCellValue(fFIeld);
+	    cell = row_image.createCell(++CELLCOUNT);
+	    cell.setCellValue(fFIeld + "-" + "model_confidence");
+	    cell = row_image.createCell(++CELLCOUNT);
+	    cell.setCellValue(fFIeld + "-" + "OCR_confidence");
+
+	}
+
+	/*
+	 * <FIELD_REC> <text_populate> <text_value_populate>
+	 */
+
+	for (Map.Entry<String, Hashtable<String, Hashtable<String, Hashtable<String, String>>>> extract_VALUES : resultant
+		.entrySet()) {
+
+	    Hashtable<String, Hashtable<String, Hashtable<String, String>>> outer_loop_0_0 = extract_VALUES.getValue();
+	    for (Map.Entry<String, Hashtable<String, Hashtable<String, String>>> outer_loop_1_1 : outer_loop_0_0
+		    .entrySet()) {
+
+		String imgnm = outer_loop_1_1.getKey();// IMAGE NAME
+
+		/* EXCEL OPERATION */
+
+		Hashtable<String, Hashtable<String, String>> field_set = outer_loop_1_1.getValue();
+
+		Map<String, String> iBIND = new HashMap<String, String>();
+
+		for (Map.Entry<String, Hashtable<String, String>> fieldDICT : field_set.entrySet()) {
+
+		    String FIELD_REC = fieldDICT.getKey();
+
+		    System.out.println("PROCESSING FIELD" + "-" + " " + FIELD_REC);
+
+		    Hashtable<String, String> iterate_record = fieldDICT.getValue();
+
+		    if ((iterate_record.containsKey("model_confidence")) && (iterate_record.containsKey("text"))) {
+			String key_iModelConfidence = iterate_record.get("model_confidence");
+			String value_iText = iterate_record.get("text");
+
+			iBIND.put(key_iModelConfidence, value_iText);
+			bindRECEPTOR.put(FIELD_REC + "-" + imgnm + "-" + UUID.randomUUID().toString(), iBIND);
+
+		    }
+
+		    for (Map.Entry<String, String> val_text : iterate_record.entrySet()) {
+
+			String text_populate = val_text.getKey();
+			String text_value_populate = val_text.getValue();
+
+			search_DA(workb, "EXTRAC-RES", imgnm, FIELD_REC, text_populate, text_value_populate, mapRow);
+
+		    }
+
+		}
+	    }
+	}
+
+	workb.write(fMaster);
+	fMaster.close();
+	workb.close();
+    }
+
+    public static String getVALUEOF(double MC, String fieldname, String imagename) {
+	String getVALUE_OF = "ERROR";
+
+	String conversionMCString = String.valueOf(MC);
+
+	for (Map.Entry<String, Map<String, String>> keyV : bindRECEPTOR.entrySet()) {
+
+	    String splitString = keyV.getKey();
+
+	    String fieldnameEXTRACT = null;
+	    String imagenameEXTRACT = null;
+
+	    /*
+	     * SOME SPECIAL HARD CODED CONFIGURATION HANDLING LIKE LUT_remit_to-organization
+	     * THIS CASE IS HANDLED SEPERATELY DUE TO UNABLE TO FIND REGEX ALL OTHER FIELDS
+	     * IN JAON IS "_" SUFFIXED WITH NAME BUT HERE LUT_remit_to-organization IS
+	     * HAVING "-" IN JSON IF SOMEONCE CAN CREATE REGEX FOR HANDLING THIS CASE THAT
+	     * WOULD BE SUPER FUN
+	     */
+	    if (splitString.contains("LUT_remit_to-organization")) {
+		String whackedString = splitString.replace("_", "-");
+		String[] parts = whackedString.split("-");
+		fieldnameEXTRACT = parts[0];
+		imagenameEXTRACT = parts[6];
+
+	    } else {
+		String[] parts = splitString.split("-");
+		fieldnameEXTRACT = parts[0];
+		imagenameEXTRACT = parts[3];
+	    }
+
+	    Map<String, String> keyFilterV = keyV.getValue();
+	    for (Map.Entry<String, String> iterateValue : keyFilterV.entrySet()) {
+		if (iterateValue.getKey().equals(conversionMCString) && fieldname.contains(fieldnameEXTRACT)
+			&& imagename.contains(imagenameEXTRACT)) {
+		    getVALUE_OF = iterateValue.getValue();
+
+		    break;
+		}
+
+	    }
+
+	}
+	return getVALUE_OF;
+    }
+
+    public static void search_DA(XSSFWorkbook wb_get, String sheet_name, String imagename, String fieldname,
+	    String searchTXT, String searchTXTVAL, Map<String, Integer> mapRow /* , Map<String, String> binder */)
+	    throws NumberFormatException {
+
+	int imageRowValue = mapRow.containsKey(imagename) ? mapRow.get(imagename) : 0;
+
+	XSSFSheet sheet = wb_get.getSheet(sheet_name);
+
+	XSSFRow row = sheet.getRow(0);
+
+	XSSFRow rowGET = sheet.getRow(imageRowValue);
+
+	for (int index_cell = 0; index_cell < row.getLastCellNum(); index_cell++) {
+
+	    if (row != null && row.getCell(index_cell).getStringCellValue().equals(fieldname + "-" + searchTXT)) {
+		if (searchTXT == "model_confidence") {
+
+		    if (rowGET.getCell(index_cell) != null) {
+			XSSFCell readcell = rowGET.getCell(index_cell);
+			String previous_ModelConfidence = readcell.getStringCellValue();
+			prevMC = Double.parseDouble(previous_ModelConfidence);
+
+			if (prevMC > Double.parseDouble(searchTXTVAL)) {
+			    readcell.setCellValue(String.valueOf(prevMC));
+			    String txt_fieldVALUE = getVALUEOF(Double.parseDouble(String.valueOf(prevMC)), fieldname,
+				    imagename);
+			    XSSFCell writecellVAL = rowGET.createCell(index_cell - 1);
+			    writecellVAL.setCellValue(txt_fieldVALUE);
+			    break;
+			} else {
+			    readcell.setCellValue(searchTXTVAL);
+			    String txt_fieldVALUE = getVALUEOF(Double.parseDouble(String.valueOf(searchTXTVAL)),
+				    fieldname, imagename);
+			    XSSFCell writecellVAL = rowGET.createCell(index_cell - 1);
+			    writecellVAL.setCellValue(txt_fieldVALUE);
+			    break;
+
+			}
+		    } else {
+			XSSFCell writecell = rowGET.createCell(index_cell);
+			writecell.setCellValue(searchTXTVAL);
+			String txt_fieldVALUE = getVALUEOF(Double.parseDouble(searchTXTVAL), fieldname, imagename);
+			XSSFCell writecellVAL = rowGET.createCell(index_cell - 1);
+			writecellVAL.setCellValue(txt_fieldVALUE);
+			break;
+		    }
+
+		}
+	    }
+
+	    if (row != null && row.getCell(index_cell).getStringCellValue().equals(fieldname + "-" + searchTXT)) {
+
+		if (searchTXT == "OCR_confidence") {
+		    /* ?WHERE IS OCRCONFIDENCE? */
+		    XSSFCell writecell = rowGET.createCell(index_cell);
+		    writecell.setCellValue(searchTXTVAL);
+		}
+		break;
+	    }
+
+	}
+
+    }
+}
