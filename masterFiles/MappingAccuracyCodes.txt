@@ -1,0 +1,15 @@
+
+TRANSFORMER				-			MASTER
+
+invoice_number			-			ven_doc_num
+invoice_date			-			doc_date
+amount 					-			gross_amt
+purchase_order_number	-			PO_No
+ship_to					-			Ship_To
+tax_amount				-			Tax_Amount
+customer_no				-			cust_no
+vendor_name				-			Vendor Name
+doc_curr				-			doc_curr
+
+
+
